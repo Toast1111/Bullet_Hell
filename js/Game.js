@@ -146,7 +146,7 @@ export class Game {
         // Update enemies
         for (const enemy of this.enemies) {
             if (enemy.active) {
-                enemy.update(deltaTime, this.player, this.enemyBullets);
+                enemy.update(deltaTime, this.player, this.enemyBullets, this.enemies);
             }
         }
 
@@ -216,11 +216,9 @@ export class Game {
             this.player.stop();
         }
 
-        // Shooting
-        if (this.input.isMousePressed()) {
-            const mousePos = this.input.getMousePosition();
-            this.player.shoot(new Vector2D(mousePos.x, mousePos.y), this.playerBullets);
-        }
+        // Automatic shooting toward mouse position
+        const mousePos = this.input.getMousePosition();
+        this.player.shoot(new Vector2D(mousePos.x, mousePos.y), this.playerBullets);
     }
 
     _checkObjectiveComplete() {
