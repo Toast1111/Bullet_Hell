@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bullet Hell Roguelike</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-overlay">
+            <div id="menu-screen" class="screen active">
+                <h1>Bullet Hell Roguelike</h1>
+                <button id="start-button">Start Game</button>
+                <div id="instructions">
+                    <p><strong>Controls:</strong></p>
+                    <p>WASD or Arrow Keys - Move</p>
+                    <p>Mouse - Aim and Shoot</p>
+                    <p>Click - Fire bullets</p>
+                </div>
+            </div>
+            <div id="hud" class="screen">
+                <div id="health-bar">
+                    <div class="bar-label">Health</div>
+                    <div class="bar-container">
+                        <div id="health-fill" class="bar-fill"></div>
+                    </div>
+                </div>
+                <div id="objective-info">
+                    <span id="objective-text"></span>
+                </div>
+                <div id="level-info">
+                    <span id="level-number">Level: 1</span>
+                    <span id="modifiers"></span>
+                </div>
+            </div>
+            <div id="door-selection-screen" class="screen">
+                <h2>Choose Your Path</h2>
+                <div id="door-container"></div>
+            </div>
+            <div id="game-over-screen" class="screen">
+                <h2>Game Over</h2>
+                <p id="final-level">Level Reached: 0</p>
+                <button id="restart-button">Try Again</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
