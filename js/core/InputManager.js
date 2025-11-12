@@ -6,8 +6,8 @@ export class InputManager {
     constructor() {
         this.keys = new Set();
         this.mouse = {
-            x: 0,
-            y: 0,
+            x: 400, // Center of 800px canvas
+            y: 300, // Center of 600px canvas
             pressed: false,
             justPressed: false
         };

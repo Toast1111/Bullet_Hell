@@ -25,7 +25,7 @@ export class Player extends Entity {
     }
 
     shoot(targetPos, bullets) {
-        if (this.shootCooldown > 0) return;
+        if (this.shootCooldown > 0) return false;
 
         const direction = targetPos.subtract(this.position).normalize();
         const bullet = new PlayerBullet(
@@ -35,6 +35,7 @@ export class Player extends Entity {
         );
         bullets.push(bullet);
         this.shootCooldown = this.shootDelay;
+        return true;
     }
 
     update(deltaTime, bounds) {

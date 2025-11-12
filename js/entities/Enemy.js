@@ -11,16 +11,35 @@ export class Enemy extends Entity {
         this.radius = 12;
         this.health = 30;
         this.maxHealth = 30;
-        this.speed = 80;
+        this.speed = 60;
         this.shootCooldown = 0;
         this.shootDelay = 1.5;
         this.damage = 10;
     }
 
-    update(deltaTime, player, bullets) {
-        // Basic movement toward player
-        const direction = player.position.subtract(this.position).normalize();
-        this.velocity = direction.multiply(this.speed);
+    update(deltaTime, player, bullets, allEnemies = []) {
+        // Movement toward player with separation from other enemies
+        const toPlayer = player.position.subtract(this.position).normalize();
+        
+        // Add separation force to avoid clustering
+        let separation = new Vector2D(0, 0);
+        const separationRadius = 80; // Distance to maintain from other enemies
+        const separationStrength = 2.0; // How strong the separation force is
+        
+        for (const other of allEnemies) {
+            if (other === this || !other.active) continue;
+            
+            const distance = this.position.distance(other.position);
+            if (distance < separationRadius && distance > 0) {
+                const away = this.position.subtract(other.position);
+                const force = away.normalize().multiply((separationRadius - distance) / separationRadius);
+                separation = separation.add(force);
+            }
+        }
+        
+        // Combine player-seeking and separation
+        const combined = toPlayer.add(separation.multiply(separationStrength)).normalize();
+        this.velocity = combined.multiply(this.speed);
         
         super.update(deltaTime);
 
