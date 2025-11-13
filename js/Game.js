@@ -216,9 +216,28 @@ export class Game {
             this.player.stop();
         }
 
-        // Automatic shooting toward mouse position
-        const mousePos = this.input.getMousePosition();
-        this.player.shoot(new Vector2D(mousePos.x, mousePos.y), this.playerBullets);
+        // Automatic shooting toward closest enemy
+        const closestEnemy = this._findClosestEnemy();
+        if (closestEnemy) {
+            this.player.shoot(closestEnemy.position, this.playerBullets);
+        }
+    }
+
+    _findClosestEnemy() {
+        let closestEnemy = null;
+        let closestDistance = Infinity;
+
+        for (const enemy of this.enemies) {
+            if (!enemy.active) continue;
+            
+            const distance = this.player.position.distance(enemy.position);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestEnemy = enemy;
+            }
+        }
+
+        return closestEnemy;
     }
 
     _checkObjectiveComplete() {
