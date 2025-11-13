@@ -192,13 +192,13 @@ export class Game {
             this._updateHealthBar();
         }
 
+        // Check win conditions (before cleanup so we can still count enemies)
+        this._checkObjectiveComplete();
+
         // Cleanup inactive entities
         this.enemies = this.collisionSystem.cleanupInactive(this.enemies);
         this.playerBullets = this.collisionSystem.cleanupInactive(this.playerBullets);
         this.enemyBullets = this.collisionSystem.cleanupInactive(this.enemyBullets);
-
-        // Check win conditions
-        this._checkObjectiveComplete();
 
         // Check lose condition
         if (this.player.health <= 0) {
