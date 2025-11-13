@@ -224,7 +224,7 @@ export class LevelGenerator {
             const modifierCount = Random.int(0, 2);
             const selectedModifiers = [];
             
-            for (let j = 0; j < modifierCount; j++) {
+            while (selectedModifiers.length < modifierCount && selectedModifiers.length < modifierList.length) {
                 const modifier = Random.choice(modifierList);
                 if (!selectedModifiers.includes(modifier)) {
                     selectedModifiers.push(modifier);
