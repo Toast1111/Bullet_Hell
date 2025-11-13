@@ -1,6 +1,7 @@
 import { Random } from '../utils/math.js';
 import { Enemy, SpreadEnemy } from '../entities/Enemy.js';
 import { CapturePoint } from '../entities/CapturePoint.js';
+import { Obstacle } from '../entities/Obstacle.js';
 
 /**
  * Level Types
@@ -25,36 +26,46 @@ export const Modifiers = {
  * Procedurally generates levels
  */
 export class LevelGenerator {
-    constructor(width, height) {
-        this.width = width;
-        this.height = height;
+    constructor(baseWidth, baseHeight) {
+        this.baseWidth = baseWidth;
+        this.baseHeight = baseHeight;
     }
 
     generateLevel(levelNumber, type, modifiers = []) {
+        // Keep level size same as canvas for now (no camera system needed)
+        const width = this.baseWidth;
+        const height = this.baseHeight;
+
         const level = {
             type,
             number: levelNumber,
             modifiers,
             enemies: [],
             capturePoint: null,
-            objective: null
+            objective: null,
+            obstacles: [],
+            width,
+            height
         };
 
         // Apply difficulty scaling
         const difficulty = 1 + (levelNumber - 1) * 0.3;
 
+        // Generate obstacles/cover
+        level.obstacles = this._generateObstacles(width, height, levelNumber);
+
         if (type === LevelType.ELIMINATION) {
             level.objective = this._generateEliminationObjective(difficulty, modifiers);
-            level.enemies = this._generateEnemies(level.objective.targetCount, modifiers, difficulty);
+            level.enemies = this._generateEnemies(level.objective.targetCount, modifiers, difficulty, width, height, level.obstacles);
         } else if (type === LevelType.CAPTURE_POINT) {
             level.objective = this._generateCaptureObjective();
             level.capturePoint = new CapturePoint(
-                this.width / 2,
-                this.height / 2,
+                width / 2,
+                height / 2,
                 3.0
             );
             const enemyCount = Math.floor(5 * difficulty);
-            level.enemies = this._generateEnemies(enemyCount, modifiers, difficulty);
+            level.enemies = this._generateEnemies(enemyCount, modifiers, difficulty, width, height, level.obstacles);
         }
 
         return level;
@@ -82,21 +93,91 @@ export class LevelGenerator {
         };
     }
 
-    _generateEnemies(count, modifiers, difficulty) {
+    _generateObstacles(width, height, levelNumber) {
+        const obstacles = [];
+        const obstacleCount = Random.int(3, 8); // 3-8 obstacles per level
+        const margin = 80;
+
+        for (let i = 0; i < obstacleCount; i++) {
+            const obstacleWidth = Random.range(40, 100);
+            const obstacleHeight = Random.range(40, 100);
+            
+            let x, y, attempts = 0;
+            let validPosition = false;
+
+            // Try to find a valid position (not in center, not overlapping other obstacles)
+            while (!validPosition && attempts < 50) {
+                x = Random.range(margin, width - margin - obstacleWidth);
+                y = Random.range(margin, height - margin - obstacleHeight);
+                
+                // Check not in center
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const distFromCenter = Math.sqrt(Math.pow(x + obstacleWidth/2 - centerX, 2) + Math.pow(y + obstacleHeight/2 - centerY, 2));
+                
+                if (distFromCenter > 150) {
+                    // Check not overlapping with existing obstacles
+                    validPosition = true;
+                    for (const obs of obstacles) {
+                        if (this._rectanglesOverlap(x, y, obstacleWidth, obstacleHeight, 
+                                                      obs.position.x, obs.position.y, obs.width, obs.height)) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                }
+                
+                attempts++;
+            }
+
+            if (validPosition) {
+                obstacles.push(new Obstacle(x, y, obstacleWidth, obstacleHeight));
+            }
+        }
+
+        return obstacles;
+    }
+
+    _rectanglesOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
+        const margin = 20; // Add margin between obstacles
+        return !(x1 + w1 + margin < x2 || x2 + w2 + margin < x1 || 
+                 y1 + h1 + margin < y2 || y2 + h2 + margin < y1);
+    }
+
+    _generateEnemies(count, modifiers, difficulty, width, height, obstacles) {
         const enemies = [];
         const margin = 50;
 
         for (let i = 0; i < count; i++) {
-            let x, y;
+            let x, y, validPosition = false, attempts = 0;
             
-            // Spawn away from center
-            do {
-                x = Random.range(margin, this.width - margin);
-                y = Random.range(margin, this.height - margin);
-            } while (
-                Math.abs(x - this.width / 2) < 100 &&
-                Math.abs(y - this.height / 2) < 100
-            );
+            // Find valid spawn position
+            while (!validPosition && attempts < 100) {
+                x = Random.range(margin, width - margin);
+                y = Random.range(margin, height - margin);
+                
+                // Check not in center
+                const distFromCenter = Math.sqrt(Math.pow(x - width/2, 2) + Math.pow(y - height/2, 2));
+                
+                if (distFromCenter > 100) {
+                    // Check not inside obstacles
+                    validPosition = true;
+                    for (const obstacle of obstacles) {
+                        if (obstacle.containsPoint(x, y)) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                }
+                
+                attempts++;
+            }
+
+            if (!validPosition) {
+                // Fallback position if we couldn't find a valid spot
+                x = Random.range(margin, width - margin);
+                y = Random.range(margin, height - margin);
+            }
 
             // 20% chance for special enemy type
             const enemy = Random.boolean(0.2) 
