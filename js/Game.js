@@ -155,13 +155,15 @@ export class Game {
             }
         }
 
-        // Update bullets
+        // Update bullets and check obstacle collisions
         for (const bullet of this.playerBullets) {
             bullet.update(deltaTime, this.bounds);
+            this._checkBulletObstacleCollision(bullet);
         }
 
         for (const bullet of this.enemyBullets) {
             bullet.update(deltaTime, this.bounds);
+            this._checkBulletObstacleCollision(bullet);
         }
 
         // Update capture point if exists
@@ -306,6 +308,17 @@ export class Game {
                     this.player.position.x += pushX;
                     this.player.position.y += pushY;
                 }
+            }
+        }
+    }
+
+    _checkBulletObstacleCollision(bullet) {
+        if (!bullet.active) return;
+        
+        for (const obstacle of this.obstacles) {
+            if (obstacle.containsPoint(bullet.position.x, bullet.position.y)) {
+                bullet.active = false;
+                break;
             }
         }
     }

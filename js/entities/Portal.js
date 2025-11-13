@@ -70,5 +70,16 @@ export class Portal {
             12,
             'center'
         );
+
+        // Show level type
+        const typeName = this.doorData.type === 'elimination' ? 'ELIMINATION' : 'CAPTURE';
+        renderer.drawText(
+            typeName,
+            this.position.x,
+            this.position.y + radius + 20,
+            '#ffcc00',
+            10,
+            'center'
+        );
     }
 }
