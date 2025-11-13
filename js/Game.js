@@ -4,6 +4,7 @@ import { StateManager, GameState } from './core/StateManager.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
 import { LevelGenerator, LevelType } from './levels/LevelGenerator.js';
 import { Player } from './entities/Player.js';
+import { Portal } from './entities/Portal.js';
 import { Vector2D } from './utils/math.js';
 
 /**
@@ -39,6 +40,8 @@ export class Game {
         this.currentLevel = null;
         this.levelNumber = 1;
         this.doorOptions = [];
+        this.portals = [];
+        this.obstacles = [];
     }
 
     _setupEventListeners() {
@@ -68,9 +71,17 @@ export class Game {
         this.enemies = this.currentLevel.enemies;
         this.playerBullets = [];
         this.enemyBullets = [];
+        this.portals = [];
+        this.obstacles = this.currentLevel.obstacles || [];
         
-        // Reset player position
-        this.player.position = new Vector2D(this.renderer.width / 2, this.renderer.height / 2);
+        // Update bounds based on level size
+        this.bounds = {
+            width: this.currentLevel.width,
+            height: this.currentLevel.height
+        };
+        
+        // Reset player position to center
+        this.player.position = new Vector2D(this.currentLevel.width / 2, this.currentLevel.height / 2);
         this.player.velocity = new Vector2D(0, 0);
 
         this._updateUI();
@@ -95,38 +106,31 @@ export class Game {
         document.getElementById('health-fill').style.width = `${healthPercent}%`;
     }
 
-    showDoorSelection() {
+    showPortals() {
         this.doorOptions = this.levelGenerator.generateDoorOptions();
-        const doorContainer = document.getElementById('door-container');
-        doorContainer.innerHTML = '';
+        this.portals = [];
 
-        this.doorOptions.forEach((door, index) => {
-            const doorDiv = document.createElement('div');
-            doorDiv.className = 'door-option';
-            
-            const typeName = door.type === LevelType.ELIMINATION ? 'Elimination' : 'Capture Point';
-            const modifiers = door.modifiers.map(m => m.name).join(', ') || 'No Modifiers';
-            
-            doorDiv.innerHTML = `
-                <h3>Door ${index + 1}</h3>
-                <p><strong>Type:</strong> ${typeName}</p>
-                <p class="door-modifier">${modifiers}</p>
-            `;
+        // Spawn portals at North, East, and West walls
+        const positions = [
+            { x: this.currentLevel.width / 2, y: 60, dir: 'north' },
+            { x: this.currentLevel.width - 60, y: this.currentLevel.height / 2, dir: 'east' },
+            { x: 60, y: this.currentLevel.height / 2, dir: 'west' }
+        ];
 
-            doorDiv.addEventListener('click', () => {
-                this.selectDoor(index);
-            });
-
-            doorContainer.appendChild(doorDiv);
-        });
-
-        this.stateManager.setState(GameState.DOOR_SELECTION);
+        for (let i = 0; i < 3; i++) {
+            const portal = new Portal(
+                positions[i].x,
+                positions[i].y,
+                positions[i].dir,
+                this.doorOptions[i]
+            );
+            this.portals.push(portal);
+        }
     }
 
-    selectDoor(index) {
+    selectPortal(index) {
         const door = this.doorOptions[index];
         this.loadLevel(this.levelNumber + 1, door.type, door.modifiers);
-        this.stateManager.setState(GameState.PLAYING);
     }
 
     gameOver() {
@@ -140,8 +144,9 @@ export class Game {
         // Handle input
         this._handleInput(deltaTime);
 
-        // Update player
+        // Update player with obstacle collision
         this.player.update(deltaTime, this.bounds);
+        this._handlePlayerObstacleCollision();
 
         // Update enemies
         for (const enemy of this.enemies) {
@@ -163,6 +168,14 @@ export class Game {
         if (this.currentLevel.capturePoint) {
             this.currentLevel.capturePoint.update(deltaTime, this.player);
         }
+
+        // Update portals
+        for (const portal of this.portals) {
+            portal.update(deltaTime);
+        }
+
+        // Check portal interactions
+        this._checkPortalInteraction();
 
         // Handle collisions
         const collisionResults = this.collisionSystem.checkCollisions(
@@ -254,8 +267,46 @@ export class Game {
             }
         }
 
-        if (complete) {
-            this.showDoorSelection();
+        if (complete && this.portals.length === 0) {
+            this.showPortals();
+        }
+    }
+
+    _checkPortalInteraction() {
+        for (let i = 0; i < this.portals.length; i++) {
+            const portal = this.portals[i];
+            if (portal.canInteract(this.player)) {
+                this.selectPortal(i);
+                break;
+            }
+        }
+    }
+
+    _handlePlayerObstacleCollision() {
+        for (const obstacle of this.obstacles) {
+            const bounds = obstacle.getBounds();
+            const playerX = this.player.position.x;
+            const playerY = this.player.position.y;
+            const playerRadius = this.player.radius;
+
+            // Check if player overlaps with obstacle
+            const closestX = Math.max(bounds.x, Math.min(playerX, bounds.x + bounds.width));
+            const closestY = Math.max(bounds.y, Math.min(playerY, bounds.y + bounds.height));
+
+            const distanceX = playerX - closestX;
+            const distanceY = playerY - closestY;
+            const distanceSquared = distanceX * distanceX + distanceY * distanceY;
+
+            if (distanceSquared < playerRadius * playerRadius) {
+                // Push player out of obstacle
+                const distance = Math.sqrt(distanceSquared);
+                if (distance > 0) {
+                    const pushX = (distanceX / distance) * (playerRadius - distance);
+                    const pushY = (distanceY / distance) * (playerRadius - distance);
+                    this.player.position.x += pushX;
+                    this.player.position.y += pushY;
+                }
+            }
         }
     }
 
@@ -263,9 +314,19 @@ export class Game {
         this.renderer.clear();
 
         if (this.stateManager.getState() === GameState.PLAYING) {
+            // Render obstacles
+            for (const obstacle of this.obstacles) {
+                obstacle.render(this.renderer);
+            }
+
             // Render capture point
             if (this.currentLevel.capturePoint) {
                 this.currentLevel.capturePoint.render(this.renderer);
+            }
+
+            // Render portals
+            for (const portal of this.portals) {
+                portal.render(this.renderer);
             }
 
             // Render entities
@@ -303,6 +364,17 @@ export class Game {
             '#666',
             12
         );
+        
+        if (this.portals.length > 0) {
+            this.renderer.drawText(
+                'Enter a portal to continue!',
+                this.renderer.width / 2,
+                this.renderer.height - 30,
+                '#00ffff',
+                16,
+                'center'
+            );
+        }
     }
 
     gameLoop(currentTime) {
